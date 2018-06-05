@@ -303,7 +303,7 @@ def write_to_db(data_dict):
 
 
 def get_data(hostname, community, interval, data_dict, stop_event):
-	"""Retrieve data from devices"""
+	"""Retrieve data from devices using SNMP"""
 
 	try:
 		#Create SNMP session
