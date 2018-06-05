@@ -2,16 +2,57 @@
 
 #Importing all the neccessary modules
 import sys
-import textfsm
 import os
-from pprint import pprint
 import re
-import easysnmp
-import influxdb
-import requests.exceptions
+#import influxdb
 import time
 import datetime
 import threading
+
+try:
+	from colorama import init, deinit, Fore, Style
+except ImportError:
+	print "\n* Module colorama needs to be installed on your system."
+	print "* Download it from: https://pypi.python.org/pypi/colorama\n"
+	sys.exit()
+
+#Initializing colorama
+init()
+
+try:
+	import requests
+except ImportError:
+	print Fore.RED + Style.BRIGHT + "* Module" + Fore.YELLOW + Style.BRIGHT + " requests" + Fore.RED + Style.BRIGHT + " needs to be installed on your system."
+	print "* Download it from: " + Fore.GREEN + Style.BRIGHT + "https://pypi.python.org/pypi/requests\n" + Fore.WHITE + Style.BRIGHT + "\n"
+	sys.exit()
+
+try:
+	from pprint import pprint
+except ImportError:
+	print Fore.RED + Style.BRIGHT + "* Module" + Fore.YELLOW + Style.BRIGHT + " pprint" + Fore.RED + Style.BRIGHT + " needs to be installed on your system."
+	print "* Download it from: " + Fore.GREEN + Style.BRIGHT + "https://pypi.python.org/pypi/pprint" + Fore.WHITE + Style.BRIGHT + "\n"
+	sys.exit()
+
+try:
+	import textfsm
+except ImportError:
+	print Fore.RED + Style.BRIGHT + "* Module" + Fore.YELLOW + Style.BRIGHT + " textfsm" + Fore.RED + Style.BRIGHT + " needs to be installed on your system."
+	print "* Download it from: " + Fore.GREEN + Style.BRIGHT + "https://pypi.python.org/pypi/textfsm" + Fore.WHITE + Style.BRIGHT + "\n"
+	sys.exit()
+
+try:
+	import easysnmp
+except ImportError:
+	print Fore.RED + Style.BRIGHT + "* Module" + Fore.YELLOW + Style.BRIGHT + " easysnmp" + Fore.RED + Style.BRIGHT + " needs to be installed on your system."
+	print "* Download it from: " + Fore.GREEN + Style.BRIGHT + "https://pypi.python.org/pypi/easysnmp" + Fore.WHITE + Style.BRIGHT + "\n"
+	sys.exit()
+
+try:
+	import influxdb
+except ImportError:
+	print Fore.RED + Style.BRIGHT + "* Module" + Fore.YELLOW + Style.BRIGHT + " influxdb" + Fore.RED + Style.BRIGHT + " needs to be installed on your system."
+	print "* Download it from: " + Fore.GREEN + Style.BRIGHT + "https://pypi.python.org/pypi/influxdb" + Fore.WHITE + Style.BRIGHT + "\n"
+	sys.exit()
 
 #Regex pattern for interval transformation to seconds
 interval_pattern = re.compile(r"^\d+(y|w|d|h|m|s|)$")
@@ -109,3 +150,11 @@ def parser():
 
 		#Add parsed data about exact device (dev_dict) to devices list
 		devices.append(dev_dict)
+
+
+if __name__ == "__main__":
+	find_devices()
+	#pprint(dev_files)
+	parser()
+	#print "\ndevices"
+	#pprint(devices)
