@@ -1,0 +1,11 @@
+Value Required type (field)
+Value name (\S+)
+Value oid (\S+)
+Value tags (.+)
+
+
+Start
+  ^\[\[inputs.snmp.${type}\]\]
+  ^\s+name = "${name}"
+  ^\s+oid = "${oid}"
+  ^\s+tags = \[${tags}\] -> Record
