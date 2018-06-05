@@ -20,7 +20,7 @@ except ImportError:
 init()
 
 try:
-	import requests
+	import requestss
 except ImportError:
 	print Fore.RED + Style.BRIGHT + "* Module" + Fore.YELLOW + Style.BRIGHT + " requests" + Fore.RED + Style.BRIGHT + " needs to be installed on your system."
 	print "* Download it from: " + Fore.GREEN + Style.BRIGHT + "https://pypi.python.org/pypi/requests\n" + Fore.WHITE + Style.BRIGHT + "\n"
@@ -214,30 +214,137 @@ def ping(ip):
 def create_ping_threads(ip_list):
 	"""Creates thread for each ip address in ip_list."""
 
+	#List with threads (one thread for one ip address)
 	threads = []
 	for ip in ip_list:
 		th = threading.Thread(target = ping, args = (ip,))
+
+		#Start threads
 		th.start()
+
+		#Add threads to the list
 		threads.append(th)
 
+	#Terminate threads
 	for th in threads:
 		th.join()
 
+def create_db():
+	"""Creates database called NetMon in InfluxDB"""
+
+	#Database name
+	dbname = "NetMon"
+
+	#Check flag
+	is_db = False
+
+	try:
+		#Create client object to connect to database
+		client = influxdb.InfluxDBClient(host = "localhost", port = 8086)
+
+		#Check if NetMon database already exists
+		#If so - do not create database again
+		for db in client.get_list_database():
+			if dbname == db["name"]:
+				is_db = True
+				break
+
+		#Evaluate the check flag
+		#If database with name NetMon already exists - switch to this database
+		#Else - create NetMon database and switch to this database
+		if is_db:
+			client.switch_database(dbname)
+		else:
+			client.create_database(dbname)
+			client.switch_database(dbname)
+
+		#Close connection to database
+		client.close()
+	except requests.exceptions.ConnectionError:
+		#Catch exception if there are some problem with connection to database
+		print Fore.RED + Style.BRIGHT +  "**[INfluxDB] - Service influxdb is not run or not installed! Please check your database configuration and status!"
+		print "** The program will be stoped!"
+		print Fore.WHITE + Style.BRIGHT + "\n"
+		sys.exit()
+
+
+def write_to_db(data_dict):
+	"""Write points to database NetMon.
+	Points are data that associated with exact timestamp, tags and field."""
+
+	#List to contain points that need to be written to database
+	json_body = []
+
+	#Create point for each field in data_dict dictionary and add each point to json_body list
+	for field in data_dict["fields"]:
+		point = {}
+		point["measurement"] = field["name"]
+
+		tags = {}
+		for tag in field["tags"]:
+			for i in data_dict["tags"]:
+				if i["name"] == tag:
+					tags[tag] = i["value"]
+
+		point["tags"] = tags
+
+		point["fields"] = {"value": field["value"]}
+
+		json_body.append(point)
+
+	#Create client object to connect to database
+	client = influxdb.InfluxDBClient(host = "localhost", port = 8086, database = "NetMon")
+
+	#Write data to database
+	client.write_points(json_body)
+
+	#Close connection to the database
+	client.close()
+
+
+def get_data(hostname, community, interval, data_dict, stop_event):
+	"""Retrieve data from devices"""
+
+	try:
+		#Create SNMP session
+		session = easysnmp.Session(hostname = hostname, community = community, version = 2)
+
+		#Work until stop event is set
+		while not stop_event.is_set():
+			#Send SNMP GETNEXT requests for tags
+			for index, tag in enumerate(data_dict["tags"]):
+				data_dict["tags"][index]["value"] = session.get_next(tag["oid"]).value
+
+			#Send SNMP GETNEXT requests for fields
+			for index, field in enumerate(data_dict["fields"]):
+				data_dict["fields"][index]["value"] = int(session.get_next(field["oid"]).value)
+
+			#Call function to write retrieved data to database
+			write_to_db(data_dict)
+
+			#Stop execution for predefined period of time (interval)
+			time.sleep(interval)
+
+	except easysnmp.EasySNMPTimeoutError:
+		#Catch exception if there are some problem with SNMP connection to devices
+		print Fore.RED + Style.BRIGHT + "**[SNMP] - Connection is timed out to the device! Please check SNMP configuration on your devices!"
+		print "The program will be stopped!"
+		print Fore.RED + Style.BRIGHT + "\n"
+		sys.exit()
 
 
 if __name__ == "__main__":
 	find_devices()
-	#pprint(dev_files)
 	parser()
-	print "\ndevices"
-	pprint(devices)
+
+	#Add device's ip addresses to ips list
 	for dev in devices:
 		ips.append(dev["ip"])
 
-	#pprint(ips)
-
+	#Test connectivity to devices using threads
 	create_ping_threads(ips)
 
+	#Remove devices with ip addresses that are not reachable
 	for ip in not_available_ips:
 		for dev in devices:
 			if ip == dev["ip"]:
