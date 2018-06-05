@@ -116,8 +116,25 @@ def transform_interval(interval):
 def parser():
 	"""Parse configuration files in devices folder and poputate devices list with information about each device from that files."""
 	for file in dev_files:
+
+		#Create file object
+		myfile = open(file)
+
+		#Move cursor to the beginning of the file
+		myfile.seek(0)
+
+		#Check if the file is empty
+		if not myfile.read(1):
+			print Fore.RED + Style.BRIGHT + "* File " + Fore.YELLOW + file + Fore.RED + Style.BRIGHT + " is empty!"
+			print "** Please verify your file!"
+			print Fore.WHITE + Style.BRIGHT + "\n"
+			sys.exit()
+
+		#Move cursor to the beginning of the file
+		myfile.seek(0)
+
 		#Open file
-		data = open(file).read()
+		data = myfile.read()
 
 		#Create textfsm object for parsing general data
 		#./templates/gen_parser.textfsm - pattern file for parsing device's general data (ip, community string and so on)
@@ -208,7 +225,9 @@ def ping(ip):
 		print Fore.WHITE + Style.BRIGHT + "\n"
 		not_available_ips.append(ip)
 	else:
-		print Fore.GREEN + Style.BRIGHT + "\n* Ping to the following device is successful --> " + Fore.YELLOW + Style.BRIGHT + ip
+		#print Fore.GREEN + Style.BRIGHT + "\n* Ping to the following device is successful --> " + Fore.YELLOW + Style.BRIGHT + ip
+		#print Fore.WHITE + Style.BRIGHT + "\n"
+		pass
 
 
 def create_ping_threads(ip_list):
@@ -359,6 +378,7 @@ if __name__ == "__main__":
 			else:
 				pass
 
+	#pprint(devices)
 	#Call function to create database
 	create_db()
 
