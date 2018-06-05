@@ -4,10 +4,10 @@
 import sys
 import os
 import re
-#import influxdb
 import time
 import datetime
 import threading
+import subprocess
 
 try:
 	from colorama import init, deinit, Fore, Style
@@ -61,8 +61,15 @@ interval_pattern = re.compile(r"^\d+(y|w|d|h|m|s|)$")
 #List of dictionaries (one dictionary for one device)
 devices = []
 
+#List with all ip addresses
+ips = []
+
+#List of ip addresses to check connectivity to devices
+not_available_ips = []
+
+
 def find_devices():
-	"""Find all files that ends with .conf extantion"""
+	"""Find all files that ends with .conf extantion."""
 	if os.path.exists(r"./devices") and os.path.isdir(r"./devices"):
 		if os.listdir(r"./devices") != []:
 			global dev_files
@@ -74,8 +81,40 @@ def find_devices():
 		print "Folder (./devices) does not exists!"
 		sys.exit()
 
+
+def transform_interval(interval):
+	"""Transform time interval to seconds."""
+	try:
+		#if there is no pattern match
+		if interval_pattern.search(interval) == None:
+			raise ValueError
+		#y - years
+		if "y" in interval:
+			res = int(interval[:-1]) * 31449600
+		#w - weeks
+		elif "w" in interval:
+			res = int(interval[:-1]) * 604800
+		#d - days
+		elif "d" in interval:
+			res = int(interval[:-1]) * 86400
+		#h - hours
+		elif "h" in interval:
+			res = int(interval[:-1]) * 3600
+		#m - minutes
+		elif "m" in interval:
+			res = int(interval[:-1]) * 60
+		#else - seconds
+		else:
+			res = int(interval[:-1])
+	except ValueError:
+		print 'Invalid literal for interval in file! There should be the following format: Interval = "[number][y|w|d|h|m]"'
+		sys.exit()
+
+	return res
+
+
 def parser():
-	"""Parse configuration files in devices folder and poputate devices list with information about each device from that files"""
+	"""Parse configuration files in devices folder and poputate devices list with information about each device from that files."""
 	for file in dev_files:
 		#Open file
 		data = open(file).read()
@@ -152,9 +191,56 @@ def parser():
 		devices.append(dev_dict)
 
 
+def ping(ip):
+	"""Ping ip address. If ping is not successful remove the device from devices[] list."""
+
+	#On Linux and MAC OS X platforms
+	if sys.platform.startswith("linux") or sys.platform.startswith("darwin"):
+		ping_reply = subprocess.call(["ping", "-c", "2", "-w", "2", "-q", "-n", ip], stdout = subprocess.PIPE)
+	#On Windows platforms
+	elif sys.platform.startswith("win"):
+		ping_reply = subprocess.call(["ping", "-n", "2", "-w", "2", ip], stdout = subprocess.PIPE)
+
+	#subprocess.call returns 0 if ping to the device is successful
+	if ping_reply != 0:
+		print Fore.RED + Style.BRIGHT + "\n** Ping to the following device has failed --> " + Fore.YELLOW + Style.BRIGHT + ip
+		print Fore.RED + Style.BRIGHT + "\n** The device with ip address --> " + Fore.YELLOW + Style.BRIGHT + ip + Fore.RED + Style.BRIGHT + " will be removed from the list and will not be monitored!"
+		print Fore.WHITE + Style.BRIGHT + "\n"
+		not_available_ips.append(ip)
+	else:
+		print Fore.GREEN + Style.BRIGHT + "\n* Ping to the following device is successful --> " + Fore.YELLOW + Style.BRIGHT + ip
+
+
+def create_ping_threads(ip_list):
+	"""Creates thread for each ip address in ip_list."""
+
+	threads = []
+	for ip in ip_list:
+		th = threading.Thread(target = ping, args = (ip,))
+		th.start()
+		threads.append(th)
+
+	for th in threads:
+		th.join()
+
+
+
 if __name__ == "__main__":
 	find_devices()
 	#pprint(dev_files)
 	parser()
-	#print "\ndevices"
-	#pprint(devices)
+	print "\ndevices"
+	pprint(devices)
+	for dev in devices:
+		ips.append(dev["ip"])
+
+	#pprint(ips)
+
+	create_ping_threads(ips)
+
+	for ip in not_available_ips:
+		for dev in devices:
+			if ip == dev["ip"]:
+				devices.remove(dev)
+			else:
+				pass
