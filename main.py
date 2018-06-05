@@ -20,7 +20,7 @@ except ImportError:
 init()
 
 try:
-	import requestss
+	import requests
 except ImportError:
 	print Fore.RED + Style.BRIGHT + "* Module" + Fore.YELLOW + Style.BRIGHT + " requests" + Fore.RED + Style.BRIGHT + " needs to be installed on your system."
 	print "* Download it from: " + Fore.GREEN + Style.BRIGHT + "https://pypi.python.org/pypi/requests\n" + Fore.WHITE + Style.BRIGHT + "\n"
@@ -332,6 +332,13 @@ def get_data(hostname, community, interval, data_dict, stop_event):
 		print Fore.RED + Style.BRIGHT + "\n"
 		sys.exit()
 
+def create_dev_threads(pill2kill, dev_list):
+	"""Creates threads for each device to monitor them."""
+
+	for dev in dev_list:
+		th = threading.Thread(target = get_data, args = (dev["ip"],dev["community"], dev["interval"], dev, pill2kill))
+		yield th
+
 
 if __name__ == "__main__":
 	find_devices()
@@ -351,3 +358,38 @@ if __name__ == "__main__":
 				devices.remove(dev)
 			else:
 				pass
+
+	#Call function to create database
+	create_db()
+
+	#Create variable to set stop event for threads
+	pill2kill = threading.Event()
+
+	#List with threads
+	threads = list(create_dev_threads(pill2kill, devices))
+
+	#Start threads
+	for th in threads:
+		th.start()
+	
+	#Variable to stop threads
+	a = raw_input("Press [q] to stop threads: ")
+
+	while a != "q":
+		a = raw_input("Press [q] to stop threads: ")
+
+		if a != "q":
+			print Fore.RED + Style.BRIGHT + "** Wrong input!"
+			print Fore.WHITE + Style.BRIGHT + "\n"
+			continue
+
+	print "Please wait....."
+
+	pill2kill.set()
+
+	#Terminate threads
+	for th in threads:
+		th.join()
+
+	print Fore.GREEN + Style.BRIGHT + "[OK] - Threads are stopped!"
+	print Fore.WHITE + Style.BRIGHT + "\n"
