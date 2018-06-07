@@ -1,0 +1,10 @@
+Value agent (\S+)
+Value community (\S+)
+Value interval (\S+)
+
+
+Start
+  ^\[\[inputs.snmp\]\]
+  ^\s+agent = "${agent}"
+  ^\s+community = "${community}"
+  ^\s+interval = "${interval}" -> Record
